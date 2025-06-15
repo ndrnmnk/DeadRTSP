@@ -1,0 +1,34 @@
+# ALLOWED PROTOCOLS
+# 0 - both TCP and UDP
+# 1 - force TCP, reply with "Unsupported protocol" to UDP
+# 2 - force UDP, reply with "Unsupported protocol" to TCP
+# 3 - force TCP, reply to UDP as if client asked for TCP
+# 4 - force UDP, reply to TCP as if client asked for UDP
+PROTOCOL_MODE: 0
+
+# Session config
+max_sessions: 10
+session_timeout: 60
+
+# main server port. ALWAYS has to be forwarded
+main_port: 8554
+# Ports that UDP clients can connect to. Forward these if using UDP
+min_udp_port: 5000
+max_udp_port: 6000
+
+# Make sure that all ports from this range are unused. DON'T forward these
+min_tcp_relay_port: 10000
+max_tcp_relay_port: 11000
+
+# Ports to use in SDP generation. DON'T forward these
+min_sdp_gen_port: 30000
+max_sdp_gen_port: 31000
+
+# LOG LEVEL
+# from most info printed to least:
+# 10 - debug
+# 20 - info;
+# 30 - warning;
+# 40 - error; recommended to use
+# 50 - critical;
+log_level: 10
