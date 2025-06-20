@@ -21,11 +21,9 @@ class Config:
         return self._config
 
     def port_set_used(self, port):
-        print(f"PORT TAKEN: {port}")
         self._used_ports.add(port)
 
     def port_set_free(self, port):
-        print(f"PORT FREED: {port}")
         try:
             self._used_ports.remove(port)
         except KeyError:
@@ -35,8 +33,8 @@ class Config:
         # Since all ports allocated through this are used in pairs, only the first port from the pair will be returned
         # Second port can be accessed at returned_port+1
         if mode == "relay":
-            start = self._config["min_tcp_relay_port"]
-            finish = self._config["max_tcp_relay_port"]
+            start = self._config["min_relay_port"]
+            finish = self._config["max_relay_port"]
         elif mode == "sdp":
             start = self._config["min_sdp_gen_port"]
             finish = self._config["max_sdp_gen_port"]

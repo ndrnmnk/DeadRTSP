@@ -1,6 +1,5 @@
 old
-*.3gp
-*.mp4
+vids
 .venv
 .idea
 __pycache__

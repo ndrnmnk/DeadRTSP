@@ -8,21 +8,24 @@ PROTOCOL_MODE: 0
 
 # Session config
 max_sessions: 10
-session_timeout: 60
+session_timeout: 180
 
 # main server port. ALWAYS has to be forwarded
 main_port: 8554
 # Ports that UDP clients can connect to. Forward these if using UDP
-min_udp_port: 5000
-max_udp_port: 6000
+min_udp_port: 9000
+max_udp_port: 10000
 
-# Make sure that all ports from this range are unused. DON'T forward these
-min_tcp_relay_port: 10000
-max_tcp_relay_port: 11000
+# Those ports are used in relays. DON'T forward these
+min_relay_port: 10000
+max_relay_port: 11000
 
 # Ports to use in SDP generation. DON'T forward these
-min_sdp_gen_port: 30000
-max_sdp_gen_port: 31000
+min_sdp_gen_port: 12000
+max_sdp_gen_port: 13000
+
+# if you really want to, you can set one port range for both relays and sdp generation, config.py can handle this
+
 
 # LOG LEVEL
 # from most info printed to least:
@@ -31,4 +34,4 @@ max_sdp_gen_port: 31000
 # 30 - warning;
 # 40 - error; recommended to use
 # 50 - critical;
-log_level: 10
+log_level: 40
