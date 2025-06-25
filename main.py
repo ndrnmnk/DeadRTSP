@@ -11,13 +11,13 @@ from sdp_gen import generate_sdp
 
 # EDIT THIS FUNCTION TO CHANGE THE VIDEO
 def choose_video(request):
-    return "vids/fkh.3gp"
+    return "video.mp4"
 
 
 # EDIT THIS LIST TO INCLUDE YOUR LEGACY DEVICE IF IT DOESN'T WORK AS-IS
 legacy_signatures = [
     "helixdnaclient",
-    "realmedia player helixdnaclient",
+    "realmedia player",
     # ADD YOUR DEVICE HERE
 ]
 
@@ -149,7 +149,6 @@ class RTSPSession:
             Config().port_set_used(p2)
 
             sdp = generate_sdp(self.video, self.addr[0], p1, p2, self.ssrcs)
-            print(sdp)
 
             Config().port_set_free(p1)
             Config().port_set_free(p2)

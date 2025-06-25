@@ -1,32 +1,4 @@
 import subprocess
-import json
-
-def get_video_length(file_path):
-    try:
-        # Run ffprobe command to extract duration in JSON format
-        cmd = [
-            'ffprobe',
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'format=duration',
-            '-of', 'json',
-            file_path
-        ]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
-
-        # If ffprobe fails, return -1
-        if result.returncode != 0:
-            return -1
-
-        # Parse the JSON output
-        info = json.loads(result.stdout)
-        duration = info.get("format", {}).get("duration", None)
-
-        # Return duration as float, or -1 if not found
-        return float(duration) if duration is not None else -1
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, json.JSONDecodeError, ValueError):
-        return None
 
 def generate_sdp(video_name, client_ip, v_port, a_port, ssrcs=None):
     # Generate video SDP
@@ -98,7 +70,3 @@ def generate_sdp(video_name, client_ip, v_port, a_port, ssrcs=None):
     res = res.replace('\n', '\r\n')
 
     return res
-
-if __name__ == "__main__":
-    generate_sdp("vids/bad_apple.3gp", "127.0.0.1", 10002, 10004)
-    print(get_video_length("vids/bad_apple.3gp"))
