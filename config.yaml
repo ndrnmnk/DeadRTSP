@@ -4,11 +4,11 @@
 # 2 - force UDP, reply with "Unsupported protocol" to TCP
 # 3 - force TCP, reply to UDP as if client asked for TCP
 # 4 - force UDP, reply to TCP as if client asked for UDP
-PROTOCOL_MODE: 0
+PROTOCOL_MODE: 2
 
 # Session config
 max_sessions: 10
-session_timeout: 180
+session_timeout: 60
 
 # main server port. ALWAYS has to be forwarded
 main_port: 8554
@@ -26,6 +26,10 @@ max_sdp_gen_port: 13000
 
 # if you really want to, you can set one port range for both relays and sdp generation, config.py can handle this
 
+# Compatibility mode: limits tracks to 1 video + 1 audio and treats every client like it is in legacy list
+# Can have "On" and "Off" values
+compatibility_mode: On
+
 
 # LOG LEVEL
 # from most info printed to least:
@@ -34,4 +38,4 @@ max_sdp_gen_port: 13000
 # 30 - warning;
 # 40 - error; recommended to use
 # 50 - critical;
-log_level: 40
+log_level: 10

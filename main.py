@@ -11,7 +11,7 @@ from sdp_gen import generate_sdp
 
 # EDIT THIS FUNCTION TO CHANGE THE VIDEO
 def choose_video(request):
-    return "video.mp4"
+    return "vids/sabotage.3gp"
 
 
 # EDIT THIS LIST TO INCLUDE YOUR LEGACY DEVICE IF IT DOESN'T WORK AS-IS
@@ -40,20 +40,17 @@ def generate_session_id(max_attempts=10):
                 return res
     raise RuntimeError(f"Could not allocate a unique session ID after {max_attempts} attempts. How rare is that, huh?")
 
-
 def extract_cseq(request_text):
     cseq_match = re.search(r"CSeq:\s*(\d+)", request_text)
     if not cseq_match:
         return 0
     return cseq_match.group(1)
 
-
 def extract_session_id(request):
     match = re.search(r'Session:\s*(\d+)', request)
     if match:
         return int(match.group(1))
     return None
-
 
 def parse_range(request_text, default_value):
     # matches “Range: npt=START-END” or “Range: npt=START-”
@@ -90,12 +87,15 @@ class RTSPSession:
         self.url = None
         self.relay_sockets = []
         self.teardown_lock = threading.Lock()
+        self.expected_video_tracks = None
+        self.expected_audio_tracks = None
         self.state = "idle"
         # other states are "playing", "paused", "torn_down"
 
         self.play_start_time = None
         self.play_offset = 0
-        self.ssrcs = {0: secrets.randbelow(2_147_483_648), 1: secrets.randbelow(2_147_483_648)}
+        self.ssrcs = None
+        self.legacy_client = Config().get("compatibility_mode")
 
         self.conn = conn
         self.addr = addr
@@ -103,13 +103,6 @@ class RTSPSession:
         self.buffer = b""
         self.last_activity = threading.Event()
         self.last_activity.set()
-
-        for i in (0, 1):
-            port = Config().get_free_port("relay")
-            Config().port_set_used(port)
-            self.relay_ports.append(port)
-            self.interleaved_channel_map[2 * i] = port
-            self.interleaved_channel_map[2 * i + 1] = port + 1
 
         threading.Thread(target=self.timeout_watchdog, daemon=True).start()
         self.handle_input()
@@ -138,17 +131,18 @@ class RTSPSession:
                 "Public: OPTIONS, DESCRIBE, SETUP, PLAY, PAUSE, TEARDOWN\r\n\r\n"
             )
             self.conn.send(resp.encode())
-            self.legacy_client = detect_legacy_client(request_text)
+            self.legacy_client = self.legacy_client or detect_legacy_client(request_text)
         elif "DESCRIBE" in request_text:
             self.url = request_text.splitlines()[0].split()[1]
             self.video = choose_video(request_text)
 
+            # SDP generation requires 4 free ports
             p1 = Config().get_free_port("sdp")
             Config().port_set_used(p1)
             p2 = Config().get_free_port("sdp")
             Config().port_set_used(p2)
 
-            sdp = generate_sdp(self.video, self.addr[0], p1, p2, self.ssrcs)
+            sdp, self.expected_video_tracks, self.expected_audio_tracks, self.ssrcs = generate_sdp(self.video, self.addr[0], p1, p2, self.legacy_client)
 
             Config().port_set_free(p1)
             Config().port_set_free(p2)
@@ -163,6 +157,7 @@ class RTSPSession:
                 f"{sdp}"
             )
             self.conn.send(resp.encode())
+            self.allocate_ports()
         elif "SETUP" in request_text:
             if not self.url:
                 self.url = request_text.splitlines()[0].split()[1]
@@ -205,33 +200,31 @@ class RTSPSession:
     def handle_play_udp(self, cseq, tcp_bridge=None):
         if not tcp_bridge:
             logging.debug("Handling UDP")
-            if 0 not in self.tracks or 1 not in self.tracks:
+            if len(self.tracks) != self.expected_video_tracks + self.expected_audio_tracks:
                 logging.error("Not all tracks setup yet.")
                 return
 
             ip = self.addr[0]
-            client_ports = (self.tracks[0].client_ports[0], self.tracks[1].client_ports[0])
-
             relay_ports = self.relay_ports
 
         else:
             ip = "127.0.0.1"
-            relay_ports = (tcp_bridge[0], tcp_bridge[1])
+            relay_ports = tcp_bridge
 
         video_rtp_time = int(self.start_time * 90000)
         audio_rtp_time = int(self.start_time * 44100)
 
-        # Then in your PLAY response:
+        rtp_info = ""
         if not self.legacy_client:
-            rtp_info = (
-                f"url={self.url}/trackID=0;seq={self.tracks[0].last_seq+1};rtptime={video_rtp_time},"
-                f"url={self.url}/trackID=1;seq={self.tracks[1].last_seq+1};rtptime={audio_rtp_time}"
-            )
+            for idx, track in self.tracks.items():
+                rtp_time = video_rtp_time if idx < self.expected_video_tracks else audio_rtp_time
+                rtp_info = rtp_info + f"url={self.url}/trackID={idx};seq={track.last_seq+1};rtptime={rtp_time},"
         else:
-            rtp_info = (
-                f"url={self.url}/trackID=0;seq=0;rtptime=0,"
-                f"url={self.url}/trackID=1;seq=0;rtptime=0"
-            )
+            for idx in self.tracks.values():
+                rtp_info = rtp_info + f"url={self.url}/trackID={idx};seq=0;rtptime=0,"
+
+        # Remove the last `,`
+        rtp_info = rtp_info[:-1]
 
         range_str = f"Range: npt={self.start_time:.3f}-"
         if self.end_time is not None:
@@ -247,46 +240,39 @@ class RTSPSession:
         )
         self.conn.send(response.encode())
 
-
-        server_ports = (self.tracks[0].server_ports[0], self.tracks[1].server_ports[0])
-
         # launch ffmpeg streams into relay ports
-        video_cmd = [
-            "ffmpeg", "-loglevel", "error", "-fflags", "+genpts+igndts", "-avoid_negative_ts", "make_zero",
-            "-ss", str(self.start_time), *(["-to", str(self.end_time)] if self.end_time is not None else []),
-            "-re", "-i", self.video, "-reset_timestamps", "1", "-copytb", "1", "-ssrc", str(self.ssrcs[0]),
-            "-an", "-map", "0:v:0", "-c:v", "copy", "-payload_type", "96", "-seq", str(self.tracks[0].last_seq+1),
-            "-sc_threshold", "0", "-flags", "low_delay",
-            "-f", "rtp", f"rtp://127.0.0.1:{relay_ports[0]}/?localport={server_ports[0]}"
-        ]
-        audio_cmd = [
-            "ffmpeg", "-loglevel", "error", "-fflags", "+genpts+igndts", "-avoid_negative_ts", "make_zero",
-            "-ss", str(self.start_time), *(["-to", str(self.end_time)] if self.end_time is not None else []),
-            "-re", "-i", self.video, "-reset_timestamps", "1", "-copytb", "1", "-ssrc", str(self.ssrcs[1]),
-            "-vn", "-map", "0:a:0",
-            "-c:a", "copy", "-payload_type", "97", "-seq", str(self.tracks[1].last_seq+1),
-            "-sc_threshold", "0", "-flags", "low_delay",
-            "-f", "rtp", f"rtp://127.0.0.1:{relay_ports[1]}/?localport={server_ports[1]}"
-        ]
+        for idx, track in self.tracks.items():
+            if idx < self.expected_video_tracks:
+                cmd = [
+                    "ffmpeg", "-loglevel", "error", "-fflags", "+genpts+igndts", "-avoid_negative_ts", "make_zero",
+                    "-ss", str(self.start_time), *(["-to", str(self.end_time)] if self.end_time is not None else []),
+                    "-re", "-i", self.video, "-reset_timestamps", "1", "-copytb", "1", "-ssrc", str(self.ssrcs[idx]),
+                    "-an", "-map", f"0:v:{idx}", "-c:v", "copy", "-payload_type", "96", "-seq", str(self.tracks[idx].last_seq+1),
+                    "-sc_threshold", "0", "-flags", "low_delay", "-f", "rtp",
+                    f"rtp://127.0.0.1:{relay_ports[idx]}/?localport={track.server_ports[0]}&rtcpport={track.server_ports[1]}"
+                ]
+            else:
+                cmd = [
+                    "ffmpeg", "-loglevel", "error", "-fflags", "+genpts+igndts", "-avoid_negative_ts", "make_zero",
+                    "-ss", str(self.start_time), *(["-to", str(self.end_time)] if self.end_time is not None else []),
+                    "-re", "-i", self.video, "-reset_timestamps", "1", "-copytb", "1", "-ssrc", str(self.ssrcs[idx]),
+                    "-vn", "-map", f"0:a:{idx-self.expected_video_tracks}", "-c:a", "copy", "-payload_type", "97", "-seq", str(self.tracks[idx].last_seq+1),
+                    "-sc_threshold", "0", "-flags", "low_delay", "-f", "rtp",
+                    f"rtp://127.0.0.1:{relay_ports[idx]}/?localport={track.server_ports[0]}&rtcpport={track.server_ports[1]}"
+                ]
+            self.processes.append(subprocess.Popen(cmd, stdout=subprocess.DEVNULL))
         try:
-            self.processes = [
-                subprocess.Popen(video_cmd, stdout=subprocess.DEVNULL),
-                subprocess.Popen(audio_cmd, stdout=subprocess.DEVNULL)
-            ]
-
             if not tcp_bridge:
                 # start relay threads to client and capture seq
                 for track_id, relay_port in enumerate(relay_ports):
-                    client_port = client_ports[track_id]
+                    client_port = self.tracks[track_id].client_ports[0]
+                    # Forward video to client
+                    threading.Thread(target=self.relay_udp, args=(relay_port, ip, client_port, track_id, True), daemon=True).start()
+                    # Forward server's RTCP to client
+                    threading.Thread(target=self.relay_udp, args=(relay_port+1, ip, client_port+1, track_id, False), daemon=True).start()
                     threading.Thread(
                         target=self.relay_udp,
-                        args=(relay_port, ip, client_port, track_id, True),
-                        daemon=True
-                    ).start()
-
-                    threading.Thread(
-                        target=self.relay_udp,
-                        args=(relay_port+1, ip, client_port+1, track_id, False),
+                        args=(self.tracks[track_id].client_ports[1], "127.0.0.1", self.tracks[track_id].server_ports[1], track_id, False),
                         daemon=True
                     ).start()
 
@@ -299,20 +285,20 @@ class RTSPSession:
 
         # 2) Relay both RTP and RTCP for each track
         for track_id, track in self.tracks.items():
-            rtp_chan, rtcp_chan = track.interleaved_channels
+            rtp_channel, rtcp_channel = track.interleaved_channels
             base_port = self.interleaved_channel_map[track_id*2]
 
             # RTP relay
             threading.Thread(
                 target=self.relay_udp_to_tcp,
-                args=(base_port, rtp_chan),
+                args=(base_port, rtp_channel),
                 daemon=True
             ).start()
 
             # RTCP relay
             threading.Thread(
                 target=self.relay_udp_to_tcp,
-                args=(base_port + 1, rtcp_chan),
+                args=(base_port + 1, rtcp_channel),
                 daemon=True
             ).start()
 
@@ -338,7 +324,7 @@ class RTSPSession:
         finally:
             udp_socket.close()
 
-    def relay_udp(self, local_port, dest_ip, dest_port, track_id, capture=True):
+    def relay_udp(self, local_port, dest_ip, dest_port, track_id, capture):
         """
         Relay UDP from ffmpeg local_port to client dest_ip:dest_port,
         capture RTP sequence numbers and update last_seq.
@@ -480,8 +466,9 @@ class RTSPSession:
             packet_data = self.buffer[4:4 + packet_len]
             self.buffer = self.buffer[4 + packet_len:]
 
-            if channel in self.interleaved_channel_map:
-                udp_port = self.interleaved_channel_map[channel]
+            track_id = (channel-1) // 2
+            if track_id in self.tracks:
+                udp_port = self.tracks[track_id].server_ports[1]
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
                     udp_socket.sendto(packet_data, ("127.0.0.1", udp_port))
             else:
@@ -527,6 +514,15 @@ class RTSPSession:
             else:
                 self.state = "paused"
 
+    def allocate_ports(self):
+        total_tracks = self.expected_video_tracks + self.expected_audio_tracks
+        for i in range(total_tracks):
+            port = Config().get_free_port("relay")
+            Config().port_set_used(port)
+            self.relay_ports.append(port)
+            self.interleaved_channel_map[2 * i] = port
+            self.interleaved_channel_map[2 * i + 1] = port + 1
+
     def handle_input(self):
         try:
             while True:
@@ -550,7 +546,7 @@ class RTSPSession:
         wait_time = Config().get("session_timeout")
         while True:
             self.last_activity.wait(wait_time)
-            if not self.last_activity.is_set():
+            if not self.last_activity.is_set() and not self.state == "torn_down":
                 logging.info(f"Connection from {self.addr} timed out")
                 self.teardown()
                 break

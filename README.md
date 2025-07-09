@@ -1,19 +1,19 @@
 # DeadRTSP
 
-A minimalistic RTSP server in Python designed to work with all FFmpeg-supported video formats, 
+A minimalistic RTSP server in Python designed to work with all FFmpeg-supported video formats*, 
 supporting both TCP and UDP, and capable of serving multiple clients simultaneously.
 
+*if input is audio-only, only certain codecs work. Create an issue if you need support for one
+
 > [!IMPORTANT]
-> This server supports seeking only with clients that use RTCP. This means, that clients like MPV won't seek correctly
+> Seeking is unstable. Only certain clients and transport methods work. Test with each individual client before using
 
 ### Features
 
-- Supports all FFmpeg-compatible video formats (but video needs to have audio)
+- Supports all FFmpeg-compatible video formats
 - TCP and UDP streaming modes
 - Multiple simultaneous clients
 - Supports pausing and seeking
-
-###  VLC Desktop wouldn't work properly - it uses some custom RTSP dialect. Tested successfully with other players
 
 ---
 
@@ -43,9 +43,6 @@ This edits some values in responses to make playback possible again.
 
 Most RTSP servers fail to support older feature phones. 
 DeadRTSP was built from scratch to stream video to legacy devices — tested with a Nokia N85.
-
-### Contributing
-Pull requests, suggestions and reported issues are welcome. If it helps your weird device stream video, even better.
 
 ### Footage
 
