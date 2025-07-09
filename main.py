@@ -11,7 +11,7 @@ from sdp_gen import generate_sdp
 
 # EDIT THIS FUNCTION TO CHANGE THE VIDEO
 def choose_video(request):
-    return "vids/sabotage.3gp"
+    return "video.mp4"
 
 
 # EDIT THIS LIST TO INCLUDE YOUR LEGACY DEVICE IF IT DOESN'T WORK AS-IS
