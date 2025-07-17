@@ -101,9 +101,8 @@ def generate_sdp(video_name, client_ip, v_port, a_port, compat=False):
         track_id += 1
 
     sdp_headers.append("a=control:*\r\n")
-    # Feature phones can get stuck at "Loading 0%" with video duration in SDP; comment out if this is the case
     vid_duration = get_video_duration(video_name)
-    if vid_duration:
+    if vid_duration and not compat:
         sdp_headers.append(f"a=range:npt=0-{vid_duration}\r\n")
     res = "".join(sdp_headers + sdp_media_sections).replace("127.0.0.1", client_ip)
     # Convert to CRLF line endings

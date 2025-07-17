@@ -1,12 +1,11 @@
 # DeadRTSP
 
-A minimalistic RTSP server in Python designed to work with all FFmpeg-supported video formats*, 
+A minimalistic RTSP server in Python designed to work with all FFmpeg-supported video formats, 
 supporting both TCP and UDP, and capable of serving multiple clients simultaneously.
 
-*if input is audio-only, only certain codecs work. Create an issue if you need support for one
-
 > [!IMPORTANT]
-> Seeking is unstable. Only certain clients and transport methods work. Test with each individual client before using
+> Seeking is unstable. Only certain clients and transport methods work. Test with each individual client before using.  
+> Also, audio-only streaming is in beta. If your audio can't be played with this server and ffplay client, create an issue.
 
 ### Features
 

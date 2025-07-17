@@ -143,6 +143,7 @@ class RTSPSession:
             Config().port_set_used(p2)
 
             sdp, self.expected_video_tracks, self.expected_audio_tracks, self.ssrcs = generate_sdp(self.video, self.addr[0], p1, p2, self.legacy_client)
+            # logging.critical(sdp)
 
             Config().port_set_free(p1)
             Config().port_set_free(p2)
