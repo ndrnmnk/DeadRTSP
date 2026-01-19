@@ -1,7 +1,7 @@
 # PLEASE READ AND ADJUST THIS FILE TO THE END, IT'S AS STRAIGHTFORWARD AS POSSIBLE
 
 ## ALLOWED PROTOCOLS
-# values can be "yes" or "no"; DEFAULT - yes, yes, yes, no
+# values can be "yes" or "no"; DEFAULT - yes, yes, yes, yes
 allow_udp_unicast: yes
 allow_tcp: yes
 allow_http: yes
@@ -43,7 +43,7 @@ stream_loop: yes   # default - "yes"
 # 30 - warning; default
 # 40 - error;
 # 50 - critical;
-log_level: 10
+log_level: 30
 
 ## Multicast config
 # Multicast IP base; DON'T INCLUDE THE LAST OCTET.
