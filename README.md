@@ -16,8 +16,8 @@ It's mainly designed to work with outdated clients like feature phones.
 
 ### Problems
 
-MPV doesn't seek when `seq_start_at_zero` is not enabled.  
-Multicast is untested
+MPV doesn't seek when `seq_start_at_one` is not enabled.  
+Seeking may not work properly with `mpegts` input. 
 
 ---
 
@@ -36,7 +36,7 @@ python3 main.py
 
 Configs can be found here:
 
-- `configurable.py`: **video source** and **legacy client** user agents
+- `configurable.py`: **video source**, **legacy client** user agents and **multicast**
 
 - `config.yaml`: **supported protocols**, max connections, log level etc.
 

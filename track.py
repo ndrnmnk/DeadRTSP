@@ -88,30 +88,29 @@ class Track:
         except OSError:
             logging.error(f"Port {from_port} is already in use; not relaying(session {self.session.session_id}, track {self.track_id})")
             return
-        # try:
-        while True:
-            try: data, _ = udp_socket.recvfrom(65536)
-            except socket.timeout: continue
-            seq = int.from_bytes(data[2:4], "big")
-            # if not seq: continue
-            self.last_seq = seq
-            ts = int.from_bytes(data[4:8], "big")
+        try:
+            while True:
+                try: data, _ = udp_socket.recvfrom(65536)
+                except socket.timeout: continue
+                seq = int.from_bytes(data[2:4], "big")
+                self.last_seq = seq
+                ts = int.from_bytes(data[4:8], "big")
 
-            if self.ts_offset is None:
-                if ts == 0: continue  # may get 0 once after resuming playback
-                self.ts_offset = int(self.clock_rate*self.session.play_offset) - ts + self.initial_ts_offset
+                if self.ts_offset is None:
+                    if ts == 0: continue  # may get 0 once after resuming playback
+                    self.ts_offset = int(self.clock_rate*self.session.play_offset) - ts + self.initial_ts_offset
 
-            new_ts = ts + self.ts_offset
-            if new_ts > 0xFFFFFFFF or new_ts < 0:
-                new_ts = (ts + self.ts_offset) & 0xFFFFFFFF
-                self.ts_offset = (new_ts - ts) & 0xFFFFFFFF
-            new_ts_bytes = new_ts.to_bytes(4, "big")
-            data = data[:4] + new_ts_bytes + data[8:]
+                new_ts = ts + self.ts_offset
+                if new_ts > 0xFFFFFFFF or new_ts < 0:
+                    new_ts = (ts + self.ts_offset) & 0xFFFFFFFF
+                    self.ts_offset = (new_ts - ts) & 0xFFFFFFFF
+                new_ts_bytes = new_ts.to_bytes(4, "big")
+                data = data[:4] + new_ts_bytes + data[8:]
 
-            self.on_data(data, self.track_id, 0)
-        # except Exception as e:
-        #     logging.error(f"Track stopped: {e}")
-        #     udp_socket.close()
+                self.on_data(data, self.track_id, 0)
+        except Exception as e:
+            logging.error(f"Track stopped: {e}")
+            udp_socket.close()
 
     def patch_outgoing_rtcp(self, from_port):
         """Change timestamps in RTCP sender report packets and forward to transport class"""
