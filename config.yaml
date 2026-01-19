@@ -1,16 +1,20 @@
-# ALLOWED PROTOCOLS
-# 0 - both TCP and UDP
-# 1 - force TCP, reply with "Unsupported protocol" to UDP
-# 2 - force UDP, reply with "Unsupported protocol" to TCP
-# 3 - force TCP, reply to UDP as if client asked for TCP
-# 4 - force UDP, reply to TCP as if client asked for UDP
-PROTOCOL_MODE: 0
+# PLEASE READ AND ADJUST THIS FILE TO THE END, IT'S AS STRAIGHTFORWARD AS POSSIBLE
 
-# Session config
-max_sessions: 10
-session_timeout: 60
+## ALLOWED PROTOCOLS
+# values can be "yes" or "no"; DEFAULT - yes, yes, yes, no
+allow_udp_unicast: yes
+allow_tcp: yes
+allow_http: yes
+allow_udp_multicast: yes
 
-# main server port. ALWAYS has to be forwarded
+
+## Session config
+# Note: HTTP mode uses 2 connections per session; UDP and TCP use 1
+max_connections: 10  # default: 10
+session_timeout: 60  # default: 60
+
+## Port config
+# Main server port. ALWAYS has to be forwarded
 main_port: 8554
 # Ports that UDP clients can connect to. Forward these if using UDP
 min_udp_port: 9000
@@ -19,23 +23,45 @@ max_udp_port: 10000
 # Those ports are used in relays. DON'T forward these
 min_relay_port: 10000
 max_relay_port: 11000
-
 # Ports to use in SDP generation. DON'T forward these
 min_sdp_gen_port: 12000
 max_sdp_gen_port: 13000
-
-# if you really want to, you can set one port range for both relays and sdp generation, config.py can handle this
-
-# Compatibility mode: limits tracks to 1 video + 1 audio and treats every client like it is in legacy list
-# Can have "On" and "Off" values
-compatibility_mode: On
+# if you really want to, you can set one port range for both relays and sdp generation, though this is discouraged
 
 
-# LOG LEVEL
+# Compatibility mode: limits tracks to 1 video + 1 audio, enables force_live, report_zero_rtptime and zero_initial_ts
+always_compat: no  # default - "no"
+# Forces live mode on everything (no pausing and rewinding)
+force_live: no     # default - "no"
+# Loop non-live content when forced into live
+stream_loop: yes   # default - "yes"
+
+## LOG LEVEL
 # from most info printed to least:
 # 10 - debug
 # 20 - info;
-# 30 - warning;
-# 40 - error; recommended to use
+# 30 - warning; default
+# 40 - error;
 # 50 - critical;
-log_level: 40
+log_level: 10
+
+## Multicast config
+# Multicast IP base; DON'T INCLUDE THE LAST OCTET.
+mc_ip_base: "239.0.0."  # default - "239.0.0."
+# The last octet range. First number is the start, second is the end.
+multicast_lo: [1, 255]  # default - [1, 255]
+# How much routers can multicast traffic pass. Keep low for local network, above 100 for WAN.
+multicast_ttl: 127      # default - 127
+# Multicast initializer can pause, seek and tear down the stream. Causes a ton of bugs.
+multicast_admins: no    # default - "no"
+
+
+## RTP options
+## This section is for advanced users only. Skip it if unsure.
+# Report rtptime=0 in PLAY response
+report_zero_rtptime: no  # default - "no"
+seq_start_at_one: yes    # default - "yes"
+disable_rtcp: no         # default - "no"
+zero_initial_ts: no      # default - "no"
+# Don't overwrite timestamps; If on, zero_initial_ts doesn't matter
+random_ts: no            # default - "no"

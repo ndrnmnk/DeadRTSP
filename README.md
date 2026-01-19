@@ -1,18 +1,23 @@
 # DeadRTSP
 
-A minimalistic RTSP server in Python designed to work with all FFmpeg-supported video formats, 
-supporting both TCP and UDP, and capable of serving multiple clients simultaneously.
+An RTSP server in Python designed to work with all FFmpeg-supported video formats.  
+It's mainly designed to work with outdated clients like feature phones. 
 
 > [!IMPORTANT]
-> Seeking is unstable. Only certain clients and transport methods work. Test with each individual client before using.  
-> Also, audio-only streaming is in beta. If your audio can't be played with this server and ffplay client, create an issue.
+> Seeking is unstable and very client-dependent. No idea how to make it better with vanilla FFmpeg.
 
 ### Features
 
 - Supports all FFmpeg-compatible video formats
-- TCP and UDP streaming modes
-- Multiple simultaneous clients
-- Supports pausing and seeking
+- TCP, UDP and HTTP transport modes
+- unicast and multicast
+- Live and VoD modes
+- VoD allows for pausing and seeking
+
+### Problems
+
+MPV doesn't seek when `seq_start_at_zero` is not enabled.  
+Multicast is untested
 
 ---
 
@@ -29,19 +34,17 @@ python3 main.py
 
 ### Configuration
 
-- Video Source: Set your desired input in the `choose_video()` function in `main.py`. 
-You can easily modify it to read from a file, pipe, or another stream for project integration.
+Configs can be found here:
 
-- Server Settings: Customize protocols, ports and logging level in `config.yaml`.
+- `configurable.py`: **video source** and **legacy client** user agents
 
-- Legacy clients: If your client is legacy and doesn't work correctly, 
-you can try adding it into `legacy_signatures` list. 
-This edits some values in responses to make playback possible again.
+- `config.yaml`: **supported protocols**, max connections, log level etc.
 
 ### Why?
 
-Most RTSP servers fail to support older feature phones. 
-DeadRTSP was built from scratch to stream video to legacy devices — tested with a Nokia N85.
+Most RTSP servers fail to support older feature phones.  
+DeadRTSP was initially made just to work with them — tested with a Nokia N85 and Nokia 6300.  
+Later it was expanded to be an option for newer clients too
 
 ### Footage
 
