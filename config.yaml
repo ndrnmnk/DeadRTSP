@@ -43,7 +43,7 @@ stream_loop: yes   # default - "yes"
 # 30 - warning; default
 # 40 - error;
 # 50 - critical;
-log_level: 30
+log_level: 10
 
 ## Multicast config
 # Multicast IP base; DON'T INCLUDE THE LAST OCTET.

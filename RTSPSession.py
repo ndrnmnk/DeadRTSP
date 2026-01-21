@@ -313,10 +313,13 @@ class RTSPSession:
         if td_tracks:
             for track in self.tracks.values(): track.teardown()
             if self.transport: self.transport.on_teardown()
-            if self.mcip: Config().mcip_set_free(self.mcip)
+            if self.mcip:
+                octet = int(self.mcip.split(".")[-1])
+                Config().mcip_set_free(octet)
 
         if cseq is not None:
-            self.send_response(cseq, [])
+            try: self.send_response(cseq, [])
+            except BrokenPipeError: pass
             self.rconn.close()
             self.wconn.close()
 

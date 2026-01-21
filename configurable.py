@@ -6,7 +6,7 @@ def choose_source(request_text):
     is_live(bool): True if the stream is live, False otherwise
     """
 
-    return "vids/example.mp4", False
+    return "vids/res.ts", True
 
 
 def detect_multicast(request_text):
